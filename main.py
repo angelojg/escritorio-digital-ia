@@ -126,7 +126,9 @@ async def classificar(b: LeadInput):
     if b.nome: u+=f"\nCliente: {b.nome}"
     raw=_claude(P_CLASS,u,m="claude-haiku-4-5-20251001",t=1200)
     try:
-        bt=chr(96); r=json.loads(raw.replace(bt*3+"json","").replace(bt*3,"").strip())
+        start=raw.find("{"); end=raw.rfind("}")+1
+        if start==-1: raise ValueError("no JSON")
+        r=json.loads(raw[start:end])
         log.info(f"Triagem ok: tese={r.get('tese')} viabilidade={r.get('viabilidade')}%")
         return r
     except: raise HTTPException(500,f"JSON error: {raw[:200]}")
