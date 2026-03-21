@@ -117,7 +117,7 @@ def _cs(txt,nome,email,cpf):
     r3.raise_for_status(); return {"status":"enviado","link":r3.json()["list"]["url"],"doc_key":dk}
 
 @app.get("/health")
-def health(): return {"status":"ok","version":"2.0.0","timestamp":datetime.now().isoformat(),"servicos":{"claude":"ativo" if ANTHROPIC_KEY else "sem chave","openai":"ativo" if OPENAI_KEY else "nao configurado","pinecone":"ativo" if PINECONE_KEY else "fallback","clicksign":"ativo" if CLICKSIGN_KEY else "simulado","datajud":"ativo (API publica CNJ)"}
+def health(): return {"status":"ok","version":"2.0.0","timestamp":datetime.now().isoformat(),"servicos":{"claude":"ativo" if ANTHROPIC_KEY else "sem chave","openai":"ativo" if OPENAI_KEY else "nao configurado","pinecone":"ativo" if PINECONE_KEY else "fallback","clicksign":"ativo" if CLICKSIGN_KEY else "simulado","datajud":"ativo (API publica CNJ)"}}}
 
 @app.post("/classificar")
 async def classificar(b: LeadInput):
@@ -172,7 +172,7 @@ async def extrair(b: ExtrairInput):
 
 @app.post("/atualizar-rag")
 async def rag(dias: int = 90):
-    if not all([OPENAI_KEY,PINECONE_KEY,DATAJUD_KEY]): return {"status":"pulado","motivo":"Configure OPENAI_API_KEY e PINECONE_API_KEY"}
+    if not all([OPENAI_KEY,PINECONE_KEY]): return {"status":"pulado","motivo":"Configure OPENAI_API_KEY e PINECONE_API_KEY"}
     try:
         from openai import OpenAI; from pinecone import Pinecone, ServerlessSpec; from datetime import timedelta
         oa=OpenAI(api_key=OPENAI_KEY); pc=Pinecone(api_key=PINECONE_KEY)
