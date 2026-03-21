@@ -117,7 +117,7 @@ def _cs(txt,nome,email,cpf):
     r3.raise_for_status(); return {"status":"enviado","link":r3.json()["list"]["url"],"doc_key":dk}
 
 @app.get("/health")
-def health(): return {"status":"ok","version":"2.0.0","timestamp":datetime.now().isoformat(),"servicos":{"claude":"ativo" if ANTHROPIC_KEY else "sem chave","openai":"ativo" if OPENAI_KEY else "nao configurado","pinecone":"ativo" if PINECONE_KEY else "fallback","clicksign":"ativo" if CLICKSIGN_KEY else "simulado","datajud":"ativo" if DATAJUD_KEY else "nao configurado"}}
+def health(): return {"status":"ok","version":"2.0.0","timestamp":datetime.now().isoformat(),"servicos":{"claude":"ativo" if ANTHROPIC_KEY else "sem chave","openai":"ativo" if OPENAI_KEY else "nao configurado","pinecone":"ativo" if PINECONE_KEY else "fallback","clicksign":"ativo" if CLICKSIGN_KEY else "simulado","datajud":"ativo (API publica CNJ)"}
 
 @app.post("/classificar")
 async def classificar(b: LeadInput):
@@ -182,7 +182,7 @@ async def rag(dias: int = 90):
         qs={"rmc_rcc":"reserva margem consignavel RMC INSS nulidade","trabalhista":"horas extras FGTS verbas rescisorias","sabesp_fator_k":"SABESP Fator K Sumula 193","ir_doenca_grave":"isencao IR doenca grave Lei 7713","auxilio_acidente":"auxilio acidente B36 INSS"}
         total=0
         for tese,q in qs.items():
-            r=requests.post("https://api-publica.datajud.cnj.jus.br/api_publica_tjsp/_search",json={"size":20,"query":{"bool":{"must":[{"multi_match":{"query":q,"fields":["ementa"]}}],"filter":[{"range":{"dataJulgamento":{"gte":di,"lte":df}}}]}},"sort":[{"dataJulgamento":{"order":"desc"}}]},headers={"Authorization":f"ApiKey {DATAJUD_KEY}"},timeout=30)
+            r=requests.post("https://api-publica.datajud.cnj.jus.br/api_publica_tjsp/_search",json={"size":20,"query":{"bool":{"must":[{"multi_match":{"query":q,"fields":["ementa"]}}],"filter":[{"range":{"dataJulgamento":{"gte":di,"lte":df}}}]}},"sort":[{"dataJulgamento":{"order":"desc"}}]},headers={"Authorization":"ApiKey CNJ-PUBLIC"},timeout=30)
             if r.status_code!=200: continue
             vs=[]
             for h in r.json().get("hits",{}).get("hits",[]):
