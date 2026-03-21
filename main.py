@@ -172,7 +172,7 @@ async def extrair(b: ExtrairInput):
 
 @app.post("/atualizar-rag")
 async def rag(dias: int = 90):
-    if not all([OPENAI_KEY,PINECONE_KEY,DATAJUD_KEY]): return {"status":"pulado","motivo":"Configure OPENAI PINECONE DATAJUD keys"}
+    if not all([OPENAI_KEY,PINECONE_KEY,DATAJUD_KEY]): return {"status":"pulado","motivo":"Configure OPENAI_API_KEY e PINECONE_API_KEY"}
     try:
         from openai import OpenAI; from pinecone import Pinecone, ServerlessSpec; from datetime import timedelta
         oa=OpenAI(api_key=OPENAI_KEY); pc=Pinecone(api_key=PINECONE_KEY)
