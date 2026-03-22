@@ -172,6 +172,65 @@ async def extrair(b: ExtrairInput):
 
 @app.post("/atualizar-rag")
 async def rag(dias: int = 90):
+    """Indexa acordaos reais do DataJud CNJ no Pinecone via busca semantica"""
+    if not (OPENAI_KEY and PINECONE_KEY):
+        return {"status":"pulado","motivo":"Configure OPENAI_API_KEY e PINECONE_API_KEY"}
+    try:
+        from openai import OpenAI
+        from pinecone import Pinecone, ServerlessSpec
+        oa=OpenAI(api_key=OPENAI_KEY); pc=Pinecone(api_key=PINECONE_KEY)
+        if PINECONE_INDEX not in [i.name for i in pc.list_indexes()]:
+            pc.create_index(name=PINECONE_INDEX,dimension=3072,metric="cosine",spec=ServerlessSpec(cloud="aws",region="us-east-1"))
+        idx=pc.Index(PINECONE_INDEX)
+        ENDPOINTS={"tjsp":"https://api-publica.datajud.cnj.jus.br/api_publica_tjsp/_search","stj":"https://api-publica.datajud.cnj.jus.br/api_publica_stj/_search","trf3":"https://api-publica.datajud.cnj.jus.br/api_publica_trf3/_search","trt2":"https://api-publica.datajud.cnj.jus.br/api_publica_trt2/_search"}
+        QUERIES={"rmc_rcc":[("reserva margem consignavel RMC cartao credito INSS nulidade desconto indevido","tjsp"),("codigo 322 INSS beneficio previdenciario desconto nao autorizado","stj")],"trabalhista":[("horas extras banco horas FGTS verbas rescisorias demissao","trt2"),("horas extras reflexos DSR ferias 13 salario FGTS multa 40","stj")],"sabesp_fator_k":[("SABESP Fator K cobranca indevida esgoto consumidor","tjsp")],"ir_doenca_grave":[("isencao IR IRPF aposentadoria doenca grave cardiopatia neoplasia","trf3"),("isencao imposto renda doenca grave Lei 7713","stj")],"auxilio_acidente":[("auxilio acidente B36 INSS sequela permanente incapacidade parcial","trf3"),("beneficio previdenciario especie 36 reducao capacidade laborativa","stj")],"plano_saude":[("plano saude negativa cobertura abusiva procedimento medico","tjsp"),("plano saude recusa tratamento dano moral CDC","stj")],"iptu":[("IPTU revisao base calculo valor venal excessivo decreto","tjsp")],"itbi":[("ITBI base calculo valor declarado escritura municipio","tjsp"),("ITBI valor venal IPTU base calculo inconstitucional","stj")]}
+        total=0
+        for tese,queries in QUERIES.items():
+            vets=[]
+            for query,trib in queries:
+                url=ENDPOINTS.get(trib)
+                if not url: continue
+                try:
+                    payload={"size":20,"query":{"bool":{"should":[{"match":{"ementa":{"query":query,"boost":2}}},{"match_phrase":{"ementa":query.split()[0]}}],"minimum_should_match":1}},"sort":[{"_score":{"order":"desc"}}],"_source":["numeroProcesso","ementa","dataJulgamento","orgaoJulgador","relator"]}
+                    r=requests.post(url,json=payload,headers={"Content-Type":"application/json"},timeout=15)
+                    if r.status_code!=200: log.warning(f"DataJud {trib} {r.status_code}"); continue
+                    hits=r.json().get("hits",{}).get("hits",[])
+                    log.info(f"DataJud {trib} tese={tese}: {len(hits)} hits")
+                    for h in hits:
+                        src=h.get("_source",{})
+                        ementa=src.get("ementa","").strip()
+                        if len(ementa)<60: continue
+                        try:
+                            emb=oa.embeddings.create(model="text-embedding-3-large",input=ementa[:6000],dimensions=3072).data[0].embedding
+                        except Exception as ee: log.warning(f"embedding err: {ee}"); continue
+                        resultado="favoravel" if any(w in ementa.lower() for w in ["provid","procedent","favoravel","deferido","concedid"]) else "desfavoravel"
+                        orgao=src.get("orgaoJulgador",{})
+                        vets.append({"id":f"{trib}_{h.get('_id','x')}_{tese}"[:500],"values":emb,"metadata":{"tribunal":trib.upper(),"tese_interna":tese,"ementa":ementa[:800],"numero_processo":src.get("numeroProcesso",""),"data_julgamento":str(src.get("dataJulgamento",""))[:10],"orgao_julgador":orgao.get("nome","") if isinstance(orgao,dict) else str(orgao),"resultado":resultado}})
+                except Exception as e: log.warning(f"DataJud erro {trib}: {e}")
+            if vets:
+                for i in range(0,len(vets),100): idx.upsert(vectors=vets[i:i+100])
+                total+=len(vets)
+                log.info(f"Tese {tese}: {len(vets)} acordaos indexados")
+        stats=idx.describe_index_stats()
+        return {"status":"ok","acordaos_indexados":total,"total_pinecone":stats.get("total_vector_count",0),"teses":list(QUERIES.keys())}
+    except Exception as e: log.error(f"RAG erro: {e}"); raise HTTPException(500,str(e))
+
+@app.get("/rag-status")
+async def rag_status():
+    """Verifica acórdãos indexados no Pinecone"""
+    if not PINECONE_KEY: return {"status":"sem chave Pinecone"}
+    try:
+        from pinecone import Pinecone
+        pc=Pinecone(api_key=PINECONE_KEY)
+        if PINECONE_INDEX not in [i.name for i in pc.list_indexes()]:
+            return {"status":"indice nao existe","indice":PINECONE_INDEX,"dica":"chame POST /atualizar-rag para criar e popular"}
+        idx=pc.Index(PINECONE_INDEX)
+        stats=idx.describe_index_stats()
+        return {"status":"ok","indice":PINECONE_INDEX,"total_vetores":stats.get("total_vector_count",0),"dimensao":stats.get("dimension",0)}
+    except Exception as e: raise HTTPException(500,str(e))
+
+
+async def rag(dias: int = 90):
     if not all([OPENAI_KEY,PINECONE_KEY]): return {"status":"pulado","motivo":"Configure OPENAI_API_KEY e PINECONE_API_KEY"}
     try:
         from openai import OpenAI; from pinecone import Pinecone, ServerlessSpec; from datetime import timedelta
