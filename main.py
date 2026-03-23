@@ -198,23 +198,23 @@ async def rag(dias: int = 90):
         if PINECONE_INDEX not in [ix.name for ix in pc.list_indexes()]:
             pc.create_index(name=PINECONE_INDEX,dimension=3072,metric="cosine",spec=ServerlessSpec(cloud="aws",region="us-east-1"))
         idx=pc.Index(PINECONE_INDEX)
-        qs={"rmc_rcc":"reserva margem consignavel RMC desconto indevido INSS","trabalhista":"horas extras FGTS verbas rescisorias","sabesp_fator_k":"SABESP Fator K cobranca indevida","ir_doenca_grave":"isencao IR doenca grave aposentado","auxilio_acidente":"auxilio acidente B36 INSS"}
+        qs={"rmc_rcc":"Empréstimo Consignado","trabalhista":"Rescisão do Contrato de Trabalho","sabesp_fator_k":"Água e Esgoto","ir_doenca_grave":"Aposentadoria por Invalidez","auxilio_acidente":"Auxílio-Acidente"}
         endpoints=[("TJSP","api_publica_tjsp"),("TJRJ","api_publica_tjrj"),("TRF3","api_publica_trf3")]
         total=0
         for tese,q in qs.items():
             for trib,ep in endpoints:
                 try:
-                    r=requests.post(f"https://api-publica.datajud.cnj.jus.br/{ep}/_search",json={"size":20,"query":{"match_all":{}},"sort":[{"dataJulgamento":{"order":"desc","unmapped_type":"date"}}]},headers={"Content-Type":"application/json","Authorization":f"APIKey {DATAJUD_KEY if DATAJUD_KEY else chr(99)+chr(68)+chr(90)+chr(72)+chr(89)+chr(122)+chr(108)+chr(90)+chr(97)+chr(48)+chr(74)+chr(97)+chr(100)+chr(86)+chr(82)+chr(69)+chr(90)+chr(68)+chr(74)+chr(67)+chr(101)+chr(110)+chr(100)+chr(81)+chr(98)+chr(88)+chr(89)+chr(54)+chr(83)+chr(107)+chr(74)+chr(108)+chr(84)+chr(122)+chr(78)+chr(106)+chr(76)+chr(86)+chr(57)+chr(84)+chr(82)+chr(69)+chr(78)+chr(121)+chr(81)+chr(107)+chr(49)+chr(82)+chr(100)+chr(110)+chr(70)+chr(74)+chr(90)+chr(71)+chr(82)+chr(81)+chr(100)+chr(119)+chr(61)+chr(61)}"},timeout=15)
+                    r=requests.post(f"https://api-publica.datajud.cnj.jus.br/{ep}/_search",json={"size":20,"query":{"match":{"assuntos.nome":q}},"sort":[{"dataAjuizamento":{"order":"desc"}}]},headers={"Content-Type":"application/json","Authorization":f"APIKey {DATAJUD_KEY if DATAJUD_KEY else chr(99)+chr(68)+chr(90)+chr(72)+chr(89)+chr(122)+chr(108)+chr(90)+chr(97)+chr(48)+chr(74)+chr(97)+chr(100)+chr(86)+chr(82)+chr(69)+chr(90)+chr(68)+chr(74)+chr(67)+chr(101)+chr(110)+chr(100)+chr(81)+chr(98)+chr(88)+chr(89)+chr(54)+chr(83)+chr(107)+chr(74)+chr(108)+chr(84)+chr(122)+chr(78)+chr(106)+chr(76)+chr(86)+chr(57)+chr(84)+chr(82)+chr(69)+chr(78)+chr(121)+chr(81)+chr(107)+chr(49)+chr(82)+chr(100)+chr(110)+chr(70)+chr(74)+chr(90)+chr(71)+chr(82)+chr(81)+chr(100)+chr(119)+chr(61)+chr(61)}"},timeout=15)
                     if r.status_code!=200: continue
                     vs=[]
                     for h in r.json().get("hits",{}).get("hits",[]):
-                        src=h.get("_source",{}); ementa=src.get("ementa","")
-                        if len(ementa)<80: continue
+                        src=h.get("_source",{}); movs=[m.get("nome","") for m in src.get("movimentos",[])[:3]]; ementa=" | ".join(filter(None,[str(src.get("classe",{}).get("nome",""))]+[str(a.get("nome","")) for a in src.get("assuntos",[])[:3]]+movs))
+                        if len(ementa)<5: continue
                         try:
                             emb=oa.embeddings.create(model="text-embedding-3-large",input=ementa[:6000],dimensions=3072).data[0].embedding
                             vid=f"{trib}_{h.get(chr(95)+chr(105)+chr(100),chr(120))}_{tese}"[:90]
                             ok=any(w in ementa.lower() for w in ["provido","procedente","deferido","condenado"])
-                            vs.append({"id":vid,"values":emb,"metadata":{"tribunal":trib,"tese_interna":tese,"ementa":ementa[:800],"numeroProcesso":src.get("numeroProcesso",""),"dataJulgamento":str(src.get("dataJulgamento",""))[:10],"resultado":"favoravel" if ok else "desfavoravel"}})
+                            vs.append({"id":vid,"values":emb,"metadata":{"tribunal":trib,"tese_interna":tese,"ementa":ementa[:800],"numeroProcesso":src.get("numeroProcesso",""),"dataAjuizamento":str(src.get("dataAjuizamento",""))[:10],"resultado":"favoravel" if ok else "desfavoravel"}})
                         except: continue
                     if vs:
                         for i2 in range(0,len(vs),100): idx.upsert(vectors=vs[i2:i2+100])
