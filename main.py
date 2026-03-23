@@ -156,7 +156,7 @@ async def wpp(b: WppInput):
     msgs=(b.historico or [])[-10:]
     msgs.append({"role":"user","content":b.mensagem})
     resp=claude.messages.create(model="claude-haiku-4-5-20251001",max_tokens=450,system=sys,messages=msgs).content[0].text
-    msg_low=b.mensagem.lower(); esc=resp.upper().startswith("ESCALAR:") or any(g in msg_low for g in ["cancelar","desistir","intimac","intimação","citac","citação","audienc","audiência","recurso","oab","advogado"])
+    msg_low=b.mensagem.lower(); esc=resp.upper().startswith("ESCALAR:") or any(g in msg_low for g in ["cancelar","desistir","intimac","intimação","citac","citad","citação","audienc","audiência","recurso","oab","advogado"])
     mot=None
     if resp.upper().startswith("ESCALAR:"): mot=resp.split(":",1)[1].strip().split("\n")[0]; resp="Entendi! Vou transferir voce para um advogado agora!"
     return {"resposta":resp,"escalar":esc,"motivo_escalonamento":mot}
