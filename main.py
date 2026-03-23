@@ -172,12 +172,17 @@ async def extrair(b: ExtrairInput):
 
 @app.get("/debug-datajud")
 async def debug_datajud():
-    try:
-        r=requests.post("https://api-publica.datajud.cnj.jus.br/api_publica_tjsp/_search",
-            json={"size":3,"query":{"match_all":{}}},
-            headers={"Content-Type":"application/json","Authorization":f"APIKey {DATAJUD_KEY}"},timeout=15)
-        return {"status":r.status_code,"raw":r.text[:2000],"datajud_key_set":bool(DATAJUD_KEY)}
-    except Exception as e: return {"erro":str(e)}
+    eps=["api_publica_tjsp","api_publica_tjrj","api_publica_trf3","api_publica_stj","api_publica_tst"]
+    hdrs={"Content-Type":"application/json","Authorization":f"APIKey {DATAJUD_KEY}"}
+    results={}
+    for ep in eps:
+        try:
+            r=requests.post(f"https://api-publica.datajud.cnj.jus.br/{ep}/_search",json={"size":1,"query":{"match_all":{}}},headers=hdrs,timeout=10)
+            d=r.json(); total=d.get("hits",{}).get("total",{}).get("value",0)
+            campos=list(d.get("hits",{}).get("hits",[{}])[0].get("_source",{}).keys()) if total>0 else []
+            results[ep]={"status":r.status_code,"total":total,"campos":campos[:10]}
+        except Exception as ex: results[ep]={"erro":str(ex)[:100]}
+    return {"datajud_key_set":bool(DATAJUD_KEY),"resultados":results}
 
 @app.post("/atualizar-rag")
 async def rag(dias: int = 90):
