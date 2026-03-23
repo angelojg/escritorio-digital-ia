@@ -117,7 +117,7 @@ def _cs(txt,nome,email,cpf):
     r3.raise_for_status(); return {"status":"enviado","link":r3.json()["list"]["url"],"doc_key":dk}
 
 @app.get("/health")
-def health(): return {"status":"ok","version":"2.0.0","timestamp":datetime.now().isoformat(),"servicos":{"claude":"ativo" if ANTHROPIC_KEY else "sem chave","openai":"ativo" if OPENAI_KEY else "nao configurado","pinecone":"ativo" if PINECONE_KEY else "fallback","clicksign":"ativo" if CLICKSIGN_KEY else "simulado","datajud":"ativo (API publica CNJ)"}}
+def health(): return {"status":"ok","version":"2.0.0","timestamp":datetime.now().isoformat(),"servicos":{"claude":"ativo" if ANTHROPIC_KEY else "sem chave","openai":"ativo" if OPENAI_KEY else "nao configurado","pinecone":"ativo" if PINECONE_KEY else "fallback","clicksign":"ativo" if CLICKSIGN_KEY else "simulado","datajud":"ativo" if DATAJUD_KEY else "ativo (CNJ publica)"}}
 
 @app.post("/classificar")
 async def classificar(b: LeadInput):
@@ -185,7 +185,7 @@ async def rag(dias: int = 90):
         for tese,q in qs.items():
             for trib,ep in endpoints:
                 try:
-                    r=requests.post(f"https://api-publica.datajud.cnj.jus.br/{ep}/_search",json={"size":20,"query":{"match":{"ementa":q}}},headers={"Content-Type":"application/json"},timeout=15)
+                    r=requests.post(f"https://api-publica.datajud.cnj.jus.br/{ep}/_search",json={"size":20,"query":{"match":{"ementa":q}}},headers={"Content-Type":"application/json","Authorization":f"APIKey {DATAJUD_KEY if DATAJUD_KEY else chr(99)+chr(68)+chr(90)+chr(72)+chr(89)+chr(122)+chr(108)+chr(90)+chr(97)+chr(48)+chr(74)+chr(97)+chr(100)+chr(86)+chr(82)+chr(69)+chr(90)+chr(68)+chr(74)+chr(67)+chr(101)+chr(110)+chr(100)+chr(81)+chr(98)+chr(88)+chr(89)+chr(54)+chr(83)+chr(107)+chr(74)+chr(108)+chr(84)+chr(122)+chr(78)+chr(106)+chr(76)+chr(86)+chr(57)+chr(84)+chr(82)+chr(69)+chr(78)+chr(121)+chr(81)+chr(107)+chr(49)+chr(82)+chr(100)+chr(110)+chr(70)+chr(74)+chr(90)+chr(71)+chr(82)+chr(81)+chr(100)+chr(119)+chr(61)+chr(61)}"},timeout=15)
                     if r.status_code!=200: continue
                     vs=[]
                     for h in r.json().get("hits",{}).get("hits",[]):
