@@ -156,7 +156,7 @@ async def wpp(b: WppInput):
     msgs=(b.historico or [])[-10:]
     msgs.append({"role":"user","content":b.mensagem})
     resp=claude.messages.create(model="claude-haiku-4-5-20251001",max_tokens=450,system=sys,messages=msgs).content[0].text
-    esc=resp.upper().startswith("ESCALAR:") or any(g in b.mensagem.lower().replace(chr(227),chr(97)).replace(chr(245),chr(111)).replace(chr(231),chr(99)).replace(chr(233),chr(101)).replace(chr(234),chr(101)).replace(chr(225),chr(97)).replace(chr(241),chr(110)).replace(chr(250),chr(117)).replace(chr(238),chr(105)).replace(chr(244),chr(111)) for g in ["cancelar","desistir","intimacao","citacao","audiencia","recurso","oab","advogado"])
+    esc=resp.upper().startswith("ESCALAR:") or any(g in b.mensagem.lower().replace(chr(227),chr(97)).replace(chr(245),chr(111)).replace(chr(231),chr(99)).replace(chr(233),chr(101)).replace(chr(234),chr(101)).replace(chr(225),chr(97)).replace(chr(241),chr(110)).replace(chr(250),chr(117)).replace(chr(238),chr(105)).replace(chr(244),chr(111)) for g in ["cancelar","desistir","intimacao","intima","citacao","audiencia","recurso","oab","advogado","intima","cita","audienci","intimação","citação","audiência"])
     mot=None
     if resp.upper().startswith("ESCALAR:"): mot=resp.split(":",1)[1].strip().split("\n")[0]; resp="Entendi! Vou transferir voce para um advogado agora!"
     return {"resposta":resp,"escalar":esc,"motivo_escalonamento":mot}
