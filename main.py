@@ -185,9 +185,7 @@ async def rag(dias: int = 90):
         for tese,q in qs.items():
             for trib,ep in endpoints:
                 try:
-                    r=requests.post(f"https://api-publica.datajud.cnj.jus.br/{ep}/_search",
                     r=requests.post(f"https://api-publica.datajud.cnj.jus.br/{ep}/_search",json={"size":20,"query":{"match":{"ementa":q}}},headers={"Content-Type":"application/json"},timeout=15)
-                        headers={"Content-Type":"application/json"},timeout=15)
                     if r.status_code!=200: continue
                     vs=[]
                     for h in r.json().get("hits",{}).get("hits",[]):
