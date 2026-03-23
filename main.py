@@ -170,6 +170,15 @@ async def extrair(b: ExtrairInput):
         return json.loads(r.choices[0].message.content)
     except Exception as e: raise HTTPException(500,str(e))
 
+@app.get("/debug-datajud")
+async def debug_datajud():
+    try:
+        r=requests.post("https://api-publica.datajud.cnj.jus.br/api_publica_tjsp/_search",
+            json={"size":3,"query":{"match":{"ementa":"reserva margem consignavel"}}},
+            headers={"Content-Type":"application/json","Authorization":f"APIKey {DATAJUD_KEY}"},timeout=15)
+        return {"status":r.status_code,"raw":r.text[:2000],"datajud_key_set":bool(DATAJUD_KEY)}
+    except Exception as e: return {"erro":str(e)}
+
 @app.post("/atualizar-rag")
 async def rag(dias: int = 90):
     if not all([OPENAI_KEY,PINECONE_KEY]): return {"status":"pulado","motivo":"Configure OPENAI_API_KEY e PINECONE_API_KEY"}
